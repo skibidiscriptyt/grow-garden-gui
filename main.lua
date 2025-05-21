@@ -1,53 +1,28 @@
 --[[
-Gang Hub | Grow a Garden (Safe Version + Executor Check)
+Gang Hub | Grow a Garden (Safe Version for Codex, KRNL, etc.)
 Script made by: @SkibidiScript
-Enhanced safety: human-like delays, event throttling, structure checks
-Only runs on selected executors, kicks otherwise.
+Executor check, safe delays, GUI fixes, and drag system
 ]]
 
--- Executor Detection (returns string executor name or nil)
-local function detectExecutor()
-    local identifiers = {
-        Delta = function() return _G.Deltra and "Delta" end,
-        Codex = function() return getexecutorname and getexecutorname():lower():find("codex") and "Codex" end,
-        KRNL = function() return getexecutorname and getexecutorname():lower():find("krnl") and "KRNL" end,
-        Fluxus = function() return getexecutorname and getexecutorname():lower():find("fluxus") and "Fluxus" end,
-        Xeno = function() return getexecutorname and getexecutorname():lower():find("xen") and "Xeno" end,
-        ["Kiwi X"] = function() return getexecutorname and getexecutorname():lower():find("kiwi") and "Kiwi X" end,
-        Vegax = function() return getexecutorname and getexecutorname():lower():find("vegax") and "Vegax" end,
-    }
-
-    for name, func in pairs(identifiers) do
-        local ok, result = pcall(func)
-        if ok and result then
-            return result
-        end
-    end
-    return nil
-end
-
--- Allowed executors
-local allowedExecutors = {
-    Delta = true,
-    Codex = true,
-    KRNL = true,
-    Fluxus = true,
-    Xeno = true,
+local allowed = {
+    ["Delta"] = true,
+    ["codex"] = true,
+    ["Codex"] = true,
+    ["krnl"] = true,
+    ["Krnl"] = true,
+    ["fluxus"] = true,
+    ["Fluxus"] = true,
+    ["Xeno"] = true,
+    ["xeno"] = true,
+    ["kiwi x"] = true,
     ["Kiwi X"] = true,
-    Vegax = true,
+    ["vegax"] = true,
+    ["Vegax"] = true,
 }
 
--- Check executor
-local executorName = detectExecutor()
-if not executorName or not allowedExecutors[executorName] then
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-    if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer:Kick("This script do not allow your executor to run it on!")
-    else
-        -- fallback kick
-        Players.LocalPlayer:Kick("This script do not allow your executor to run it on!")
-    end
+local ex = identifyexecutor and identifyexecutor() or "unknown"
+if not allowed[ex] then
+    game.Players.LocalPlayer:Kick("This script does not allow your executor to run it on!")
     return
 end
 
@@ -56,14 +31,15 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
 
--- Safety Check: Exit if game structure isn't expected
+-- Safety Check
 if not workspace:FindFirstChild("Plants") or not ReplicatedStorage:FindFirstChild("BuySeed") then
     warn("Game structure not recognized. Exiting script to avoid detection.")
     return
 end
 
--- RemoteEvent throttle and random delay system
+-- Safe fire function
 local lastFired = 0
 local function safeFire(remote, ...)
     if tick() - lastFired >= 1 then
@@ -77,17 +53,46 @@ local function randomWait(min, max)
 end
 
 -- GUI Setup
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "GrowSafeUI"
+ScreenGui.ResetOnSpawn = false
+pcall(function()
+    ScreenGui.Parent = (gethui and gethui()) or LocalPlayer:WaitForChild("PlayerGui")
+end)
 
 local Frame = Instance.new("Frame", ScreenGui)
 Frame.Size = UDim2.new(0, 300, 0, 350)
 Frame.Position = UDim2.new(0.5, -150, 0.5, -175)
 Frame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-Frame.Active = true
-Frame.Draggable = true
 Frame.BorderSizePixel = 0
 Frame.BackgroundTransparency = 0.1
+
+-- Dragging system
+local dragging, dragInput, dragStart, startPos
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                                   startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
 
 -- Rainbow Label
 local RainbowText = Instance.new("TextLabel", Frame)
@@ -167,7 +172,7 @@ makeButton("Auto seal inventory", 90, function()
     end
 end)
 
--- Buy Any Seed (Warning Log Only)
+-- Buy Any Seed (Log Only)
 makeButton("Buy any seed: text", 140, function()
     warn("Buy seed requested (text only):", SeedBox.Text)
 end)
