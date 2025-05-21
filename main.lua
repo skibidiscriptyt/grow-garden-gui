@@ -1,8 +1,55 @@
 --[[
-Gang Hub | Grow a Garden (Safe Version)
+Gang Hub | Grow a Garden (Safe Version + Executor Check)
 Script made by: @SkibidiScript
 Enhanced safety: human-like delays, event throttling, structure checks
+Only runs on selected executors, kicks otherwise.
 ]]
+
+-- Executor Detection (returns string executor name or nil)
+local function detectExecutor()
+    local identifiers = {
+        Delta = function() return _G.Deltra and "Delta" end,
+        Codex = function() return getexecutorname and getexecutorname():lower():find("codex") and "Codex" end,
+        KRNL = function() return getexecutorname and getexecutorname():lower():find("krnl") and "KRNL" end,
+        Fluxus = function() return getexecutorname and getexecutorname():lower():find("fluxus") and "Fluxus" end,
+        Xeno = function() return getexecutorname and getexecutorname():lower():find("xen") and "Xeno" end,
+        ["Kiwi X"] = function() return getexecutorname and getexecutorname():lower():find("kiwi") and "Kiwi X" end,
+        Vegax = function() return getexecutorname and getexecutorname():lower():find("vegax") and "Vegax" end,
+    }
+
+    for name, func in pairs(identifiers) do
+        local ok, result = pcall(func)
+        if ok and result then
+            return result
+        end
+    end
+    return nil
+end
+
+-- Allowed executors
+local allowedExecutors = {
+    Delta = true,
+    Codex = true,
+    KRNL = true,
+    Fluxus = true,
+    Xeno = true,
+    ["Kiwi X"] = true,
+    Vegax = true,
+}
+
+-- Check executor
+local executorName = detectExecutor()
+if not executorName or not allowedExecutors[executorName] then
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer:Kick("This script do not allow your executor to run it on!")
+    else
+        -- fallback kick
+        Players.LocalPlayer:Kick("This script do not allow your executor to run it on!")
+    end
+    return
+end
 
 -- Services
 local Players = game:GetService("Players")
