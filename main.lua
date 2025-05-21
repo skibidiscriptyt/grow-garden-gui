@@ -1,23 +1,37 @@
 --[[
-Gang Hub | Grow a Garden
-GUI Script made by: @SkibidiScript
-Executor-ready script with draggable UI, rainbow text, and buttons:
-- Auto Correct Full Fruits
-- Auto Seal Inventory
-- Buy Any Seed (with textbox)
-- Buy Seed (with textbox input)
-- Warning label
+Gang Hub | Grow a Garden (Safe Version)
+Script made by: @SkibidiScript
+Enhanced safety: human-like delays, event throttling, structure checks
 ]]
 
 -- Services
 local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
+-- Safety Check: Exit if game structure isn't expected
+if not workspace:FindFirstChild("Plants") or not ReplicatedStorage:FindFirstChild("BuySeed") then
+    warn("Game structure not recognized. Exiting script to avoid detection.")
+    return
+end
+
+-- RemoteEvent throttle and random delay system
+local lastFired = 0
+local function safeFire(remote, ...)
+    if tick() - lastFired >= 1 then
+        lastFired = tick()
+        remote:FireServer(...)
+    end
+end
+
+local function randomWait(min, max)
+    task.wait(math.random(min * 100, max * 100) / 100)
+end
+
 -- GUI Setup
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "GangHubGUI"
+ScreenGui.Name = "GrowSafeUI"
 
 local Frame = Instance.new("Frame", ScreenGui)
 Frame.Size = UDim2.new(0, 300, 0, 350)
@@ -37,9 +51,8 @@ RainbowText.TextScaled = true
 RainbowText.BackgroundTransparency = 1
 RainbowText.Font = Enum.Font.SourceSansBold
 
--- Rainbow effect
 task.spawn(function()
-    while true do
+    while RainbowText.Parent do
         for hue = 0, 1, 0.01 do
             RainbowText.TextColor3 = Color3.fromHSV(hue, 1, 1)
             task.wait(0.05)
@@ -57,7 +70,10 @@ local function makeButton(text, yPos, onClick)
     btn.Text = text
     btn.Font = Enum.Font.SourceSansBold
     btn.TextScaled = true
-    btn.MouseButton1Click:Connect(onClick)
+    btn.MouseButton1Click:Connect(function()
+        randomWait(0.4, 1)
+        pcall(onClick)
+    end)
 end
 
 -- TextBox
@@ -70,45 +86,57 @@ SeedBox.TextColor3 = Color3.fromRGB(255, 0, 0)
 SeedBox.Font = Enum.Font.SourceSansBold
 SeedBox.TextScaled = true
 
--- Buttons
+-- Auto Correct Full Fruits
 makeButton("Auto correct full fruits", 40, function()
     for _, plant in pairs(workspace.Plants:GetChildren()) do
         if plant:FindFirstChild("Owner") and plant.Owner.Value == LocalPlayer.Name then
             local harvest = plant:FindFirstChild("Harvest")
             if harvest and harvest:IsA("RemoteEvent") then
-                harvest:FireServer()
+                safeFire(harvest)
+                randomWait(0.3, 0.6)
             end
         end
     end
 end)
 
+-- Auto Seal Inventory
 makeButton("Auto seal inventory", 90, function()
-    local pos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local oldPos = pos and pos.Position
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local oldPos = root and root.CFrame
     local sealer = workspace:FindFirstChild("InventorySealer")
-    if sealer and sealer:FindFirstChild("Sealer") then
-        pos.CFrame = sealer.Sealer.CFrame + Vector3.new(0, 3, 0)
-        task.wait(2)
-        local sealRemote = game.ReplicatedStorage:FindFirstChild("SealInventory")
+
+    if root and sealer and sealer:FindFirstChild("Sealer") then
+        root.CFrame = sealer.Sealer.CFrame + Vector3.new(0, 3, 0)
+        randomWait(1.5, 2.5)
+
+        local sealRemote = ReplicatedStorage:FindFirstChild("SealInventory")
         if sealRemote then
-            sealRemote:FireServer()
+            safeFire(sealRemote)
         end
-        task.wait(2)
-        if oldPos then pos.CFrame = CFrame.new(oldPos) end
+
+        randomWait(1.5, 2.5)
+        if oldPos then root.CFrame = oldPos end
     end
 end)
 
+-- Buy Any Seed (Warning Log Only)
 makeButton("Buy any seed: text", 140, function()
-    warn("Seed to buy: ", SeedBox.Text)
+    warn("Buy seed requested (text only):", SeedBox.Text)
 end)
 
+-- Buy Seed via RemoteEvent
 makeButton("Buy seed", 250, function()
     local seedName = SeedBox.Text
-    local buyRemote = game.ReplicatedStorage:FindFirstChild("BuySeed")
-    if buyRemote then
-        buyRemote:FireServer(seedName)
+    if typeof(seedName) == "string" and seedName ~= "" then
+        local buyRemote = ReplicatedStorage:FindFirstChild("BuySeed")
+        if buyRemote then
+            safeFire(buyRemote, seedName)
+        else
+            warn("BuySeed RemoteEvent not found.")
+        end
     else
-        warn("BuySeed RemoteEvent not found")
+        warn("Invalid seed name.")
     end
 end)
 
@@ -116,7 +144,7 @@ end)
 local Warning = Instance.new("TextLabel", Frame)
 Warning.Size = UDim2.new(1, 0, 0, 30)
 Warning.Position = UDim2.new(0, 0, 1, -30)
-Warning.Text = "Be careful with the script!"
+Warning.Text = "Be smart. Use with caution!"
 Warning.TextColor3 = Color3.fromRGB(0, 0, 0)
 Warning.BackgroundTransparency = 1
 Warning.TextScaled = true
