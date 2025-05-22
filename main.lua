@@ -1,24 +1,8 @@
 --[[
-Gang Hub | Grow a Garden (Safe Executor Version)
+Gang Hub | Grow a Garden (Universal Version)
 Script made by: @SkibidiScript
-Executor check + GUI + event throttling
+Safe GUI, No executor check, No kick abuse
 ]]
-
-local supportedExecutors = {
-    ["Delta"] = true,
-    ["Codex"] = true,
-    ["Krnl"] = true,
-    ["Fluxus"] = true,
-    ["Xeno"] = true,
-    ["Kiwi X"] = true,
-    ["Vega X"] = true,
-}
-
-local detectedExecutor = identifyexecutor and identifyexecutor() or "Unknown"
-if not supportedExecutors[detectedExecutor] then
-    game:GetService("Players").LocalPlayer:Kick("This script does not allow your executor to run it on!")
-    return
-end
 
 -- Don't run in Roblox Studio
 if game:GetService("RunService"):IsStudio() then
@@ -95,7 +79,7 @@ local function makeButton(text, yPos, onClick)
     end)
 end
 
--- TextBox
+-- TextBox for Seed Name
 local SeedBox = Instance.new("TextBox", Frame)
 SeedBox.Size = UDim2.new(0.9, 0, 0, 40)
 SeedBox.Position = UDim2.new(0.05, 0, 0, 200)
